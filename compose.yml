@@ -1,0 +1,39 @@
+version: '3.8'
+services:
+
+  post:
+    image: tolerantsoftware/post:11
+    container_name: post
+    mem_limit: 2g
+    mem_reservation: 512M
+    cpus: 2
+    volumes:
+      # persist post logs
+      - post-logs:/opt/tolerant/logs
+      # Licenses and data must be provided for the container to run properly
+      # Bind mounts for test purposes only:
+      - type: bind
+        source: ./config
+        target: /opt/tolerant/config
+      - type: bind
+        source: ./data
+        target: /opt/tolerant/data
+      # Example for custom configuration via volume:
+      # - post-config:/opt/tolerant/config
+      # Example for custom data via volume
+      # - post-data:/opt/tolerant/data
+    environment:
+      # username and password of a admin for the health check, in case the security is activated
+      - HEALTH_USER=admin
+      - HEALTH_PASS=admin
+      - TZ=Europe/Berlin
+    ports:
+      - "8080:8080"
+
+volumes:
+  post-logs:
+  # Examples for external created volumes with custom configuration and data
+  # post-config:
+  #   external: true
+  # post-data:
+  #   external: true
