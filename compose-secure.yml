@@ -1,0 +1,190 @@
+services:
+
+  backend:
+    image: ${TPOST_DOCKER_REGISTRY}/post:${TPOST_VERSION}
+    restart: unless-stopped
+    mem_limit: 6g
+    mem_reservation: 2g
+    shm_size: 1g
+    cpus: 4
+    volumes:
+      # persist post logs
+      - post-logs:/opt/tolerant/logs
+      # Example for custom configuration via volume:
+      - post-config:/opt/tolerant/config
+      # Example for custom data via volume
+      - post-data:/opt/tolerant/data
+    environment:
+      - INTERNAL_IDENTITY_PROVIDER_URL=${INTERNAL_IDENTITY_PROVIDER_URL}
+      - TOLERANT_CLIENT_ID=${TOLERANT_CLIENT_ID}
+      - SECURITY_ENABLED=true
+      # number of processors to be used by the JVM
+      - JVM_OPT_ACTIVE_PROCESSOR_COUNT=4
+      - TZ=${TZ}
+      # If no prometheus export is wanted, set to false
+      - TL_PROMETHEUS_METRICS_ENABLED=true
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      - keycloak
+
+  gui:
+    image: ${TPOST_DOCKER_REGISTRY}/post-gui:${TPOST_VERSION}
+    restart: unless-stopped
+    mem_limit: 6g
+    mem_reservation: 1g
+    shm_size: 512M
+    cpus: 2
+    volumes_from:
+      - backend:rw
+    environment:
+      - TZ=${TZ}
+      # enable security for the GUI service
+      - TOLERANT_GUI_URL=https://host.docker.internal:${NGINX_HTTPS_PORT}
+      - TOLERANT_CLIENT_ID=${TOLERANT_CLIENT_ID}
+      - IDENTITY_PROVIDER_URL=${IDENTITY_PROVIDER_URL}
+      - INTERNAL_IDENTITY_PROVIDER_URL=${INTERNAL_IDENTITY_PROVIDER_URL}
+      - SECURITY_ENABLED=true
+      # url to service backend
+      - BACKEND_SERVICE_URL=http://backend:8080
+      # number of processors to be used by the JVM
+      - JVM_OPT_ACTIVE_PROCESSOR_COUNT=2
+      # If no prometheus export is wanted, set to false
+      - TL_PROMETHEUS_METRICS_ENABLED=false
+    #      Uncomment the below line when installing soap
+    #      - IS_SOAP_INSTALLED=true
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      - keycloak
+
+  prometheus:
+    image: prom/prometheus:${PROMETHEUS_VERSION}
+    volumes:
+      - type: bind
+        source: ./config/prometheus/prometheus.yml
+        target: /etc/prometheus/prometheus.yml
+        read_only: true
+      - prometheus-data:/prometheus
+    expose:
+      - 9090
+    depends_on:
+      - backend
+
+  grafana:
+    image: grafana/grafana:${GRAFANA_VERSION}
+    volumes:
+      - ./config/grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=tolerant
+      - GF_SECURITY_ADMIN_PASSWORD=tolerant
+    ports:
+      - ${GRAFANA_PORT}:3000
+    depends_on:
+      - prometheus
+
+  openssl:
+    image: tolerant-products/openssl
+    build: ./config/openssl
+    environment:
+      - ORGANISATION_UNIT=TOLERANT Post
+    volumes:
+      - ./config/nginx/ssl/certs:/etc/ssl/certs
+      - ./config/nginx/ssl/private:/etc/ssl/private
+
+  proxy:
+    image: nginx:${NGINX_VERSION}-alpine
+    restart: unless-stopped
+    volumes_from:
+      - openssl
+    volumes:
+      - type: bind
+        source: ./config/nginx/ssl.conf.template
+        target: /etc/nginx/templates/ssl.conf.template
+        read_only: true
+      - type: bind
+        source: ./config/nginx/locations/keycloak.loc.template
+        target: /etc/nginx/templates/keycloak.loc.template
+        read_only: true
+      # for case of own ssl certificate
+      #- ./config/nginx/ssl/certs:/etc/ssl/certs
+      #- ./config/nginx/ssl/private:/etc/ssl/private
+
+      # persist nginx logs
+      - nginx-logs:/etc/nginx/logs
+    environment:
+      - PROXY_HOST_HTTPS_PORT=${NGINX_HTTPS_PORT}
+      - CERT_PRIVATE_KEY_FILENAME=${CERT_PRIVATE_KEY_FILENAME}
+      - CERT_FILENAME=${CERT_FILENAME}
+      - NGINX_SERVER_NAME=${NGINX_SERVER_NAME}
+      # the following variables are only needed if the included keycloak is to be used
+      - INTERNAL_IDENTITY_PROVIDER_URL=${INTERNAL_IDENTITY_PROVIDER_URL}
+      - INTERNAL_IDENTITY_PROVIDER_PORT=${KC_PORT}
+
+    ports:
+      - ${NGINX_HTTPS_PORT}:8443
+    depends_on:
+      backend:
+        condition: service_started
+      gui:
+        condition: service_healthy
+      openssl:
+        condition: service_completed_successfully
+        restart: true
+    extra_hosts:
+      - host.docker.internal:host-gateway
+
+  postgres:
+    image: postgres:${POSTGRES_VERSION}
+    restart: unless-stopped
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: password
+
+  keycloak:
+    image: keycloak/keycloak:${KC_VERSION}
+    command: start-dev --import-realm
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: ./config/keycloak/import
+        target: /opt/keycloak/data/import
+        read_only: true
+    environment:
+      - KC_DB=postgres
+      - KC_DB_SCHEMA=public
+      - KC_DB_USERNAME=keycloak
+      - KC_DB_PASSWORD=password
+      - KC_DB_URL_HOST=postgres
+      - KC_DB_URL_PORT=5432
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_HOSTNAME_PORT=${KC_PORT}
+      - KC_PROXY=edge
+      - KC_HOSTNAME_STRICT=false
+      - TOLERANT_CLIENT_ID=${TOLERANT_CLIENT_ID}
+      - TOLERANT_REALM=${TOLERANT_REALM}
+    ports:
+      - ${KC_PORT}:8080
+    depends_on:
+      - postgres
+
+
+volumes:
+  # Volume for persistent data of keycloak
+  nginx-logs:
+  post-logs:
+  grafana-data:
+  prometheus-data:
+  # Examples for external created volumes with custom configuration and data
+  post-config:
+  #   external: true
+  post-data:
+  #   external: true
+  # Volume for persistent data of keycloak
+  postgres-data:

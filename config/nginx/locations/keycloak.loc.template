@@ -1,0 +1,25 @@
+
+    # keycloak
+    location /keycloak {
+
+        sub_filter_types html/text application/json application/x-www-form-urlencoded;
+        sub_filter '$INTERNAL_IDENTITY_PROVIDER_URL' 'https://$host:$PROXY_HOST_HTTPS_PORT/keycloak';
+        sub_filter 'http://$host:$INTERNAL_IDENTITY_PROVIDER_PORT' 'https://$host:$PROXY_HOST_HTTPS_PORT/keycloak';
+        sub_filter 'http://localhost:$INTERNAL_IDENTITY_PROVIDER_PORT' 'https://$host:$PROXY_HOST_HTTPS_PORT/keycloak';
+        sub_filter 'http://$host/' 'https://$host:$PROXY_HOST_HTTPS_PORT/keycloak/';
+        sub_filter 'href="/resources/' 'href="/keycloak/resources/';
+        sub_filter_once off;
+
+        proxy_set_header   Host $host;
+        proxy_set_header   Cookie $http_cookie;
+
+        rewrite            ^/keycloak/(.*)$ /$1 break;
+        proxy_pass         $INTERNAL_IDENTITY_PROVIDER_URL;
+        proxy_cookie_path  /realms/tolerant /keycloak/realms/tolerant;
+        proxy_cookie_flags one httponly;
+        proxy_cookie_flags ~ secure;
+
+        proxy_redirect     default;
+        proxy_redirect     $INTERNAL_IDENTITY_PROVIDER_URL/ /keycloak/;
+
+    }

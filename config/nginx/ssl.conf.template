@@ -1,0 +1,102 @@
+# In case of basic auth or no auth remove the /auth location
+# In case of basic auth comment auth_basic and auth_basic_user_file in
+
+upstream post_backend {
+   server backend:8080;
+}
+upstream post_gui {
+   server gui:8080;
+}
+
+#soapupstream post_soap {
+#soap   server soap:8080;
+#soap}
+
+# server configuration
+server {
+    listen       8443 ssl;
+    server_name  $NGINX_SERVER_NAME;
+
+    ssl_certificate /etc/ssl/certs/$CERT_FILENAME;
+    ssl_certificate_key /etc/ssl/private/$CERT_PRIVATE_KEY_FILENAME;
+
+    #effictivly disabling the read timeout
+    proxy_read_timeout 1d;
+
+    # prometheus endpoint should not be accessible
+    location /postService/prometheus {
+        return 403;
+    }
+
+    # keycloak
+    include /etc/nginx/conf.d/keycloak*.loc;
+
+    # backend
+    location ~ ^/postService/(post|admin/V1|admin/V2|info|refresh|stop|health|metrics|prometheus|operations|license|configuration|swagger-ui|swagger) {
+
+        # auth_basic           "Post Service";
+        # auth_basic_user_file /etc/nginx/htpasswd;
+
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Forwarded-Server $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $host:$server_port;
+        proxy_set_header   X-Forwarded-Prefix /postService;
+        proxy_set_header   X-Forwarded-Host $host;
+
+        rewrite            ^/postService/(.*)$ /$1 break;
+        proxy_pass         http://post_backend;
+    }
+
+
+#soap    location /postService/soap {
+#soap        proxy_set_header   Host $host;
+#soap        proxy_set_header   X-Forwarded-Server $host;
+#soap        proxy_set_header   X-Real-IP $remote_addr;
+#soap        # proxy_set_header   X-Forwarded-For $host:$server_port;
+#soap        # The following can be used if the server is named and uses the default port (80)
+#soap        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+#soap        proxy_set_header   X-Forwarded-Prefix /postService;
+#soap        proxy_set_header   X-Forwarded-Host $host:$PROXY_HOST_HTTPS_PORT;
+#soap        proxy_set_header   X-Forwarded-Proto https;
+#soap
+#soap        rewrite            ^/postService/(.*)$ /$1 break;
+#soap        proxy_pass         http://post_soap;
+#soap    }
+
+    # gui
+    location /postService {
+
+        # auth_basic           "Post Service";
+        # auth_basic_user_file /etc/nginx/htpasswd;
+
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Forwarded-Server $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $host:$server_port;
+        proxy_set_header   X-Forwarded-Prefix /postService;
+        proxy_set_header   X-Forwarded-Host $host;
+        proxy_set_header   X-Forwarded-Proto https;
+        proxy_set_header   X-Forwarded-Port $PROXY_HOST_HTTPS_PORT;
+
+        rewrite            ^/postService/(.*)$ /$1 break;
+        proxy_pass         http://post_gui;
+    }
+
+    location = / {
+        # auth_basic           "Post Service";
+        # auth_basic_user_file /etc/nginx/htpasswd;
+
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Forwarded-Server $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Prefix /postService;
+        proxy_set_header   X-Forwarded-Host $host;
+        proxy_set_header   X-Forwarded-Proto https;
+        proxy_set_header   X-Forwarded-Port $PROXY_HOST_HTTPS_PORT;
+
+        proxy_pass         http://post_gui;
+    }
+
+}

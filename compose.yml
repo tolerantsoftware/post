@@ -1,39 +1,103 @@
-version: '3.8'
 services:
 
-  post:
-    image: tolerantsoftware/post:11
-    container_name: post
-    mem_limit: 2g
-    mem_reservation: 512M
-    cpus: 2
+  backend:
+    image: ${TPOST_DOCKER_REGISTRY}/post:${TPOST_VERSION}
+    restart: unless-stopped
+    mem_limit: 6g
+    mem_reservation: 2g
+    shm_size: 1g
+    cpus: 4
     volumes:
       # persist post logs
       - post-logs:/opt/tolerant/logs
-      # Licenses and data must be provided for the container to run properly
-      # Bind mounts for test purposes only:
-      - type: bind
-        source: ./config
-        target: /opt/tolerant/config
-      - type: bind
-        source: ./data
-        target: /opt/tolerant/data
       # Example for custom configuration via volume:
-      # - post-config:/opt/tolerant/config
+      - post-config:/opt/tolerant/config
       # Example for custom data via volume
-      # - post-data:/opt/tolerant/data
+      - post-data:/opt/tolerant/data
     environment:
-      # username and password of a admin for the health check, in case the security is activated
-      - HEALTH_USER=admin
-      - HEALTH_PASS=admin
-      - TZ=Europe/Berlin
+      # number of processors to be used by the JVM
+      - JVM_OPT_ACTIVE_PROCESSOR_COUNT=4
+      - TZ=${TZ}
+      # If no prometheus export is wanted, set to false
+      - TL_PROMETHEUS_METRICS_ENABLED=true
+
+  gui:
+    image: ${TPOST_DOCKER_REGISTRY}/post-gui:${TPOST_VERSION}
+    restart: unless-stopped
+    mem_limit: 6g
+    mem_reservation: 1g
+    shm_size: 512M
+    cpus: 2
+    volumes_from:
+      - backend:rw 
+    environment:
+      - TZ=${TZ}
+      # url to service backend
+      - BACKEND_SERVICE_URL=http://backend:8080
+      # number of processors to be used by the JVM 
+      - JVM_OPT_ACTIVE_PROCESSOR_COUNT=2
+      # If no prometheus export is wanted, set to false
+      - TL_PROMETHEUS_METRICS_ENABLED=false
+#      Uncomment the below line when installing soap
+#      - IS_SOAP_INSTALLED=true
+
+  prometheus:
+    image: prom/prometheus:${PROMETHEUS_VERSION}
+    volumes:
+      - type: bind
+        source: ./config/prometheus/prometheus.yml
+        target: /etc/prometheus/prometheus.yml
+        read_only: true
+      - prometheus-data:/prometheus
+    expose:
+      - 9090
+    depends_on:
+      - backend
+
+  grafana:
+    image: grafana/grafana:${GRAFANA_VERSION}
+    volumes:
+      - ./config/grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=tolerant
+      - GF_SECURITY_ADMIN_PASSWORD=tolerant
     ports:
-      - "8080:8080"
+      - ${GRAFANA_PORT}:3000
+    depends_on:
+      - prometheus
+
+  proxy:
+    image: nginx:${NGINX_VERSION}-alpine
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: ./config/nginx/default.conf.template
+        target: /etc/nginx/templates/default.conf.template
+        read_only: true
+
+      # persist nginx logs
+      - nginx-logs:/etc/nginx/logs
+    environment:
+      - PROXY_HOST_PORT=${NGINX_PORT}
+
+    ports:
+      - ${NGINX_PORT}:8080
+    depends_on: 
+      backend:
+        condition: service_started
+      gui:
+        condition: service_healthy
 
 volumes:
-  post-logs:
-  # Examples for external created volumes with custom configuration and data
-  # post-config:
-  #   external: true
-  # post-data:
-  #   external: true
+   # Volume for persistent data of keycloak
+   nginx-logs:
+   post-logs:
+   grafana-data:
+   prometheus-data:
+   # Examples for external created volumes with custom configuration and data
+   post-config:
+   #   external: true
+   post-data:
+   #   external: true
