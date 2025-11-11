@@ -6,7 +6,14 @@ services:
     mem_limit: 6g
     mem_reservation: 2g
     shm_size: 1g
+    # Uncomment the lines below in case of Rocky/RHEL/CentOS with infinite nofile limits
+    # ulimits:
+    #   nofile:
+    #     soft: 65536
+    #     hard: 131072
     cpus: 4
+    # Uncomment the below line and set user and group id (from host system) to use it in container
+    # user: "$UID:$GID"
     volumes:
       # persist post logs
       - post-logs:/opt/tolerant/logs
@@ -14,6 +21,8 @@ services:
       - post-config:/opt/tolerant/config
       # Example for custom data via volume
       - post-data:/opt/tolerant/data
+      # Example for custom protocols via volume
+      - post-protocols:/opt/tolerant/protocols
     environment:
       - INTERNAL_IDENTITY_PROVIDER_URL=${INTERNAL_IDENTITY_PROVIDER_URL}
       - TOLERANT_CLIENT_ID=${TOLERANT_CLIENT_ID}
@@ -23,6 +32,9 @@ services:
       - TZ=${TZ}
       # If no prometheus export is wanted, set to false
       - TL_PROMETHEUS_METRICS_ENABLED=true
+      # comment this line in to change the logging profile. possible values: anonymized, console, request, jdbc or multi-project
+      # - LOGGING_PROFILE=console
+
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:
@@ -34,7 +46,14 @@ services:
     mem_limit: 6g
     mem_reservation: 1g
     shm_size: 512M
+    # Uncomment the lines below in case of Rocky/RHEL/CentOS with infinite nofile limits
+    # ulimits:
+    #   nofile:
+    #     soft: 65536
+    #     hard: 131072
     cpus: 2
+    # Uncomment the below line and set user and group id (from host system) to use it in container
+    # user: "$UID:$GID"
     volumes_from:
       - backend:rw
     environment:
@@ -51,8 +70,11 @@ services:
       - JVM_OPT_ACTIVE_PROCESSOR_COUNT=2
       # If no prometheus export is wanted, set to false
       - TL_PROMETHEUS_METRICS_ENABLED=false
-    #      Uncomment the below line when installing soap
-    #      - IS_SOAP_INSTALLED=true
+      #  Uncomment the below line when installing soap
+      # - IS_SOAP_INSTALLED=true
+      # comment this line in to change the logging profile. possible values: anonymized, console, request, jdbc or multi-project
+      # - LOGGING_PROFILE=console
+
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:
@@ -176,9 +198,9 @@ services:
 
 
 volumes:
-  # Volume for persistent data of keycloak
   nginx-logs:
   post-logs:
+  post-protocols:
   grafana-data:
   prometheus-data:
   # Examples for external created volumes with custom configuration and data

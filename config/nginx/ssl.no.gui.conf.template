@@ -5,9 +5,6 @@ upstream post_backend {
    server backend:8080;
 }
 
-#soapupstream post_soap {
-#soap   server soap:8080;
-#soap}
 
 # server configuration
 server {
@@ -41,7 +38,10 @@ server {
         proxy_set_header   X-Forwarded-Prefix /postService;
         proxy_set_header   X-Forwarded-Host $host;
 
-        rewrite            ^/postService/(.*)$ /$1 break;
-        proxy_pass         http://post_backend;
+        rewrite            ^ $request_uri;
+        rewrite            ^/postService/(.*)$ $1 break;
+        return 400;
+
+        proxy_pass         http://post_backend/$uri;
     }
 }

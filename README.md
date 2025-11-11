@@ -33,6 +33,7 @@
 |       +-- prometheus.yml               # a prometheus configuration for collecting metrics data
 +-- .env                                 # a file containing variables for the compose files
 +-- compose.yml                          # an example configuration for docker compose
++-- compose-batch.yml                    # an example configuration for a batch process in docker compose
 +-- compose-secure.yml                   # an example configuration for docker compose with keycloak and https
 +-- README.md
 ```
@@ -103,17 +104,64 @@ The `docker compose` command should be executed from the directory containing th
 
 ### Starting a batch process
 >**Note**
-> The Post backend container must be running to execute this command. <br>
 > The config file and the reference data must exist inside the container.
+
+A batch process can be stated with the following example
+
+```sh
+docker compose -f compose-batch.yml up -d
+```
+
+Removing the container after it has exited
+
+```sh
+docker compose -f compose-batch.yml down
+```
+
+Steps to use your own configuration and data for a batch process
+- mount your configuration and data to the batch container
+- adjust the entry point of the `compose-batch.yml` to match the following pattern:
+```yaml
+entrypoint: ["postBatch.sh", "<configFilename>", "<projectId>", "<profileId>"]
+```
+
+### Starting with local user and group
+
+To start with a different user please use the following instructions:
+
+* create the following directories using the local user
+    * post-config
+    * post-data
+    * post-logs
+    * post-protocols
+* use the fully qualified path of the above mentioned directories in the compose.yml or compose-secure.yml
+* comment in the **user** setting for the **backend** and the **gui** service
+* start the compose file
 
 Without security:
 
 ```sh
-docker compose exec backend postBatch.sh <configFilename> <projectId> <profileId>
+export UID=`id -u`; export GID=`id -g`; docker compose up -d
 ```
 
 With enabled security:
 
 ```sh
-docker compose -f compose-secure.yml exec backend postBatch.sh <configFilename> <projectId> <profileId>
+export UID=`id -u`; export GID=`id -g`; docker compose -f compose-secure.yml up -d
 ```
+
+The `docker compose` command should be executed from the directory containing the `compose.yml or compose-secure.yml` file.
+
+### Stopping with local user and group
+
+```sh
+export UID=`id -u`; export GID=`id -g`; docker compose down
+```
+
+With enabled security:
+
+```sh
+export UID=`id -u`; export GID=`id -g`; docker compose -f compose-secure.yml down
+```
+
+The `docker compose` command should be executed from the directory containing the `compose.yml or compose-secure.yml` file.

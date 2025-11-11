@@ -21,7 +21,7 @@
       }
     ]
   },
-  "description": "Dashboard for TOLERANT statistics.",
+  "description": "Dashboard for TOLERANT Post statistics.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "gnetId": 6756,
@@ -116,7 +116,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "( ( sum(tolerant_limits_max_permissions{projectId=\"$projectId\"}) - sum(tolerant_limits_available_permissions{projectId=\"$projectId\"}) )/sum(tolerant_limits_max_permissions{projectId=\"$projectId\"})*100)",
+          "expr": "( ( sum(license_max_permissions{projectId=\"$projectId\"}) - sum(license_available_permissions{projectId=\"$projectId\"}) )/sum(license_max_permissions{projectId=\"$projectId\"})*100)",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -191,7 +191,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "tolerant_license_valid_left_seconds",
+          "expr": "license_valid_left_seconds",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -2115,6 +2115,198 @@
       ],
       "title": "Average Response time",
       "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 97
+      },
+      "id": 118,
+      "panels": [],
+      "title": "Pipeline Statistics",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": 1800000,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "cps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 98
+      },
+      "id": 127,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "rate(result_return_code_total{projectId=\"$projectId\"}[2m])",
+          "interval": "",
+          "legendFormat": "{{result_return_code}} {{engine}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Return code",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": 1800000,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "cps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 105
+      },
+      "id": 126,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "rate(result_process_status_total{projectId=\"$projectId\"}[2m])",
+          "legendFormat": "{{result_process_status}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Process Status",
+      "type": "timeseries"
     }
   ],
   "refresh": "1m",
@@ -2194,7 +2386,7 @@
           "type": "prometheus",
           "uid": "PBFA97CFB590B2093"
         },
-        "definition": "label_values(tolerant_limits_max_permissions, projectId)",
+        "definition": "label_values(license_max_permissions, projectId)",
         "hide": 0,
         "includeAll": false,
         "label": "Rate limit project",
@@ -2202,10 +2394,10 @@
         "name": "projectId",
         "options": [],
         "query": {
-          "query": "label_values(tolerant_limits_max_permissions, projectId)",
+          "query": "label_values(license_max_permissions, projectId)",
           "refId": "StandardVariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 1,
@@ -2243,8 +2435,8 @@
     ]
   },
   "timezone": "",
-  "title": "TOLERANT Statistics",
-  "uid": "op1_Yl-4k",
+  "title": "TOLERANT Post Statistics",
+  "uid": "op1_Yl-4kpost",
   "version": 12,
   "weekStart": ""
 }

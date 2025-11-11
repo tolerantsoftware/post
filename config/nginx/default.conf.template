@@ -40,8 +40,11 @@ server {
         proxy_set_header   X-Forwarded-Prefix /postService;
         proxy_set_header   X-Forwarded-Host $host;
 
-        rewrite            ^/postService/(.*)$ /$1 break;
-        proxy_pass         http://post_backend;
+        rewrite            ^ $request_uri;
+        rewrite            ^/postService/(.*)$ $1 break;
+        return 400;
+
+        proxy_pass         http://post_backend/$uri;
     }
 
 
@@ -60,9 +63,9 @@ server {
 #soap    }
 
     # gui
-    location /postService {
+    location = /postService {
 
-        # auth_basic           "Post Service";
+        # auth_basic           "Post GUI";
         # auth_basic_user_file /etc/nginx/htpasswd;
 
         proxy_set_header   Host $host;
@@ -78,8 +81,29 @@ server {
         proxy_pass         http://post_gui;
     }
 
+    location /postService {
+
+        # auth_basic           "Post GUI";
+        # auth_basic_user_file /etc/nginx/htpasswd;
+
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Forwarded-Server $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $host:$server_port;
+        proxy_set_header   X-Forwarded-Prefix /postService;
+        proxy_set_header   X-Forwarded-Host $host;
+        proxy_set_header   X-Forwarded-Proto http;
+        proxy_set_header   X-Forwarded-Port $PROXY_HOST_PORT;
+
+        rewrite            ^ $request_uri;
+        rewrite            ^/postService/(.*)$ $1 break;
+        return 400;
+
+        proxy_pass         http://post_gui/$uri;
+    }
+
     location = / {
-        # auth_basic           "Post Service";
+        # auth_basic           "Post GUI";
         # auth_basic_user_file /etc/nginx/htpasswd;
 
         proxy_set_header   Host $host;
