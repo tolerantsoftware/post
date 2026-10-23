@@ -1,0 +1,6 @@
+global:
+  post:
+    engineVersion: V5
+    v5Licenses:
+      - envName: UNLOCKCODE
+        value: test-license

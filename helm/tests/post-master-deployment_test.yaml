@@ -1,0 +1,245 @@
+suite: post master deployment
+templates:
+  - templates/post-master-deployment.yaml
+tests:
+  - it: does render master deployment by default
+    set:
+      config.managementMode: runtime
+      persistence.configFiles.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-tolerant-post-post-master
+      - equal:
+          path: spec.replicas
+          value: 1
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+      - equal:
+          path: spec.strategy.rollingUpdate
+          value: null
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: post
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 8080
+      - equal:
+          path: spec.template.spec.containers[0].env[0].name
+          value: GUI_ENABLED
+      - equal:
+          path: spec.template.spec.containers[0].env[0].value
+          value: "true"
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].name
+          value: post-runtime-config-volume
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: post-gui
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: post-runtime-config-volume
+      - equal:
+          path: spec.template.spec.volumes[2].name
+          value: post-data
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: post-data
+            mountPath: /opt/tolerant/data
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: dshm
+            mountPath: /dev/shm
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: dshm
+            emptyDir:
+              medium: Memory
+              sizeLimit: 1Gi
+
+  - it: dos not render master deployment when master mode is disabled
+    set:
+      master.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: supports rolling update strategy
+    set:
+      master.enabled: true
+      master.updateStrategy.type: RollingUpdate
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: RollingUpdate
+      - isNull:
+          path: spec.strategy.rollingUpdate
+
+  - it: applies common pod and container customization
+    set:
+      podLabels:
+        tier: backend
+      podAnnotations:
+        example.com/review: enabled
+      podSecurityContext:
+        runAsNonRoot: true
+      securityContext:
+        allowPrivilegeEscalation: false
+      volumes:
+        - name: shared-extra
+          emptyDir: {}
+      volumeMounts:
+        - name: shared-extra
+          mountPath: /opt/tolerant/extra
+      containers.gui.volumeMounts:
+        - name: shared-extra
+          mountPath: /usr/share/nginx/extra
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels.tier
+          value: backend
+      - equal:
+          path: spec.template.metadata.annotations["example.com/review"]
+          value: enabled
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: shared-extra
+            mountPath: /opt/tolerant/extra
+      - contains:
+          path: spec.template.spec.containers[1].volumeMounts
+          content:
+            name: shared-extra
+            mountPath: /usr/share/nginx/extra
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: shared-extra
+            emptyDir: {}
+
+  - it: renders only post container when master gui is disabled
+    set:
+      master.enabled: true
+      master.gui.enabled: false
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: post
+      - isNull:
+          path: spec.template.spec.containers[1]
+
+  - it: sets backend GUI_ENABLED from master guiEnabled value
+    set:
+      master.enabled: true
+      master.guiEnabled: false
+      master.gui.enabled: false
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[0].name
+          value: GUI_ENABLED
+      - equal:
+          path: spec.template.spec.containers[0].env[0].value
+          value: "false"
+
+  - it: mounts declarative config files pvc when enabled
+    set:
+      master.enabled: true
+      config.managementMode: declarative
+      persistence.configFiles.enabled: true
+      persistence.configFiles.existingClaim: custom-config-files
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].name
+          value: post-config-files
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: post-config-files
+      - equal:
+          path: spec.template.spec.volumes[0].persistentVolumeClaim.claimName
+          value: custom-config-files
+
+  - it: mounts runtime config pvc and seed config when runtime mode is enabled
+    set:
+      master.enabled: true
+      config.managementMode: runtime
+      persistence.runtimeConfig.existingClaim: custom-runtime-config
+      persistence.runtimeConfig.seedFromConfigMaps.enabled: true
+      persistence.runtimeConfig.seedFromConfigMaps.image: busybox:1.37
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: seed-runtime-config
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: busybox:1.37
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].name
+          value: post-runtime-config-volume
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: post-runtime-config-volume
+      - equal:
+          path: spec.template.spec.volumes[0].persistentVolumeClaim.claimName
+          value: custom-runtime-config
+      - equal:
+          path: spec.template.spec.volumes[1].name
+          value: post-runtime-config-seed
+
+  - it: omits runtime config seed container when disabled
+    set:
+      master.enabled: true
+      config.managementMode: runtime
+      persistence.runtimeConfig.seedFromConfigMaps.enabled: false
+    asserts:
+      - isNull:
+          path: spec.template.spec.initContainers
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].name
+          value: post-runtime-config-volume
+
+  - it: uses v5 license secret as envFrom when engine is v5
+    set:
+      master.enabled: true
+      global.post.engineVersion: V5
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].envFrom[0].secretRef.name
+          value: RELEASE-NAME-tolerant-post-post-ad-license
+
+  - it: mounts post data pvc and respects existing claim
+    set:
+      master.enabled: true
+      config.managementMode: runtime
+      persistence.configFiles.enabled: false
+      persistence.data.existingClaim: custom-post-data
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[2].name
+          value: post-data
+      - equal:
+          path: spec.template.spec.volumes[2].persistentVolumeClaim.claimName
+          value: custom-post-data
+
+  - it: omits post data volume when persistence data is disabled
+    set:
+      master.enabled: true
+      persistence.data.enabled: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.volumes
+          content:
+            name: post-data

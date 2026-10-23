@@ -1,0 +1,32 @@
+suite: Client settings policy
+templates:
+  - templates/client-settings-policy.yaml
+tests:
+  - it: renders the configured policy
+    asserts:
+      - isKind:
+          of: ClientSettingsPolicy
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-tolerant-post-client-settings
+      - equal:
+          path: spec.targetRef.name
+          value: RELEASE-NAME-tolerant-post-http-route
+      - equal:
+          path: spec.targetRef.kind
+          value: HTTPRoute
+      - equal:
+          path: spec.body.maxSize
+          value: 101m
+  - it: renders the policy only for the NGINX Gateway class
+    set:
+      gateway.className: custom-gateway
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: does not render the policy when disabled
+    set:
+      gateway.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0

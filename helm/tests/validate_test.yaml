@@ -1,0 +1,390 @@
+suite: chart validation
+templates:
+  - templates/validate.yaml
+tests:
+  - it: fails when tracing is enabled without an OTLP endpoint
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      telemetry.tracing.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "invalid configuration: telemetry.tracing.endpoint is required when telemetry.tracing.enabled=true"
+
+  - it: fails when an existing Gateway is configured while Gateway resources are disabled
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      gateway.existing.enabled: true
+      gateway.existing.gatewayName: shared-gateway
+      gateway.enabled: false
+      gateway.gui.enabled: false
+    asserts:
+      - failedTemplate:
+          errorMessage: "gateway.enabled must be true when gateway.existing.enabled is true so that the HTTPRoute is rendered"
+
+  - it: fails when an existing Gateway has no name
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      gateway.existing.enabled: true
+      gateway.existing.gatewayName: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "gateway.existing.gatewayName is required when gateway.existing.enabled is true"
+
+  - it: fails when log export is enabled without an OTLP endpoint
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      telemetry.logs.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "invalid configuration: telemetry.logs.endpoint is required when telemetry.logs.enabled=true"
+
+  - it: fails when engine version is unsupported
+    set:
+      global.post.engineVersion: V7
+    asserts:
+      - failedTemplate:
+          errorMessage: "invalid configuration: global.post.engine.version must be V5 or V6"
+
+  - it: fails when V6 license file name is missing
+    set:
+      global.post.engineVersion: V6
+      global.post.v6LicenceFileName: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "No license file configured"
+
+  - it: fails when configured V6 license file is absent
+    set:
+      global.post.engineVersion: V6
+      global.post.v6LicenceFileName: post-ad.lic
+    asserts:
+      - failedTemplate:
+          errorMessage: "No license files found in files/v6."
+
+  - it: fails when V5 licenses list is empty
+    set:
+      global.post.engineVersion: V5
+      global.post.v5Licenses: [ ]
+    asserts:
+      - failedTemplate:
+          errorMessage: "No v5Licenses provided"
+
+  - it: fails when V5 license envName is empty
+    set:
+      global.post.engineVersion: V5
+      global.post.v5Licenses[0].envName: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "Each v5Licenses item must have a non-empty 'envName'"
+
+  - it: fails when V5 license value is empty
+    set:
+      global.post.engineVersion: V5
+      global.post.v5Licenses:
+        - envName: "testEnv"
+          value: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "Each v5Licenses item must have a non-empty 'value'"
+
+  - it: fails when config management mode is unsupported
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      config.managementMode: manual
+    asserts:
+      - failedTemplate:
+          errorMessage: "invalid configuration: config.managementMode must be one of declarative, runtime"
+
+  - it: fails when config management mode is unsupported
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      config.managementMode: hybrid
+    asserts:
+      - failedTemplate:
+          errorMessage: "invalid configuration: config.managementMode must be one of declarative, runtime"
+
+  - it: fails when runtime config mode is combined with config files pvc mode
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      config.managementMode: runtime
+      persistence.configFiles.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "invalid configuration: persistence.configFiles.enabled cannot be true when config.managementMode=runtime"
+
+  - it: fails when runtime mode with multi replicas uses chart-managed non-rwx runtime config pvc
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      config.managementMode: runtime
+      replicaCount: 3
+      persistence.configFiles.enabled: false
+      persistence.runtimeConfig.existingClaim: ""
+      persistence.runtimeConfig.accessMode: ReadWriteOnce
+    asserts:
+      - failedTemplate:
+          errorMessage: "invalid configuration: config.managementMode=runtime with replicaCount>1 requires persistence.runtimeConfig.accessMode=ReadWriteMany for chart-managed runtime config PVC (or set persistence.runtimeConfig.existingClaim to a suitable shared claim)"
+
+  - it: fails when master gui sidecar is enabled but backend gui flag is disabled
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      master.enabled: true
+      master.gui.enabled: true
+      master.guiEnabled: false
+    asserts:
+      - failedTemplate:
+          errorMessage: "invalid configuration: master.gui.enabled=true requires master.guiEnabled=true so backend GUI_ENABLED is enabled on master"
+
+  - it: fails when master gui sidecar uses the backend port
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      master.enabled: true
+      master.gui.enabled: true
+      containers.gui.port: 8080
+    asserts:
+      - failedTemplate:
+          errorMessage: "invalid configuration: containers.gui.port must not be 8080 when the GUI sidecar is enabled because the Post backend uses port 8080 in the same pod"
+
+  - it: fails when gui gateway routing is enabled in master mode but master gui is disabled
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      master.enabled: true
+      master.gui.enabled: false
+      gateway.gui.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "invalid configuration: gateway.gui.enabled=true with master.enabled=true requires master.gui.enabled=true"
+
+  - it: fails when gui gateway routing is enabled without a master
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      master.enabled: false
+      master.gui.enabled: false
+      gateway.gui.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "invalid configuration: gateway.gui.enabled=true requires master.enabled=true"
+
+  - it: fails when gui gateway routing is enabled while gateway is disabled
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      gateway.enabled: false
+      gateway.gui.enabled: true
+      master.gui.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "invalid configuration: gateway.gui.enabled=true requires gateway.enabled=true"
+
+  - it: fails when ServiceMonitor is enabled without metrics
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      metrics.enabled: false
+      metrics.serviceMonitor.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "invalid configuration: metrics.serviceMonitor.enabled=true requires metrics.enabled=true"
+
+  - it: fails when security is enabled without identity provider URL
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      security.enabled: true
+      security.oidc.identityProviderUrl: ""
+      security.oidc.realm: tolerant
+      security.oidc.clientId: post
+    asserts:
+      - failedTemplate:
+          errorMessage: "invalid configuration: security.oidc.identityProviderUrl is required when security.enabled=true"
+
+  - it: fails when security is enabled without realm
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      security.enabled: true
+      security.oidc.identityProviderUrl: https://idp.example.com/keycloak
+      security.oidc.realm: ""
+      security.oidc.clientId: post
+    asserts:
+      - failedTemplate:
+          errorMessage: "invalid configuration: security.oidc.realm is required when security.enabled=true"
+
+  - it: fails when security is enabled without client ID
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      security.enabled: true
+      security.oidc.identityProviderUrl: https://idp.example.com/keycloak
+      security.oidc.realm: tolerant
+      security.oidc.clientId: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "invalid configuration: security.oidc.clientId is required when security.enabled=true"
+
+  - it: fails when GUI_BASE_PATH uses reserved backend segment while API_BASE_PATH is root
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      containers.gui.basePath: /api
+      containers.gui.apiBasePath: /
+    asserts:
+      - failedTemplate:
+          errorMessage: "invalid configuration: when API_BASE_PATH=/, GUI_BASE_PATH cannot use a reserved backend route segment (api, admin, gui, guiconfig, info, refresh, stop, health, metrics, prometheus, operations, license, configuration, swagger-ui, swagger, routes, execute)"
+
+  - it: allows non-reserved GUI_BASE_PATH when API_BASE_PATH is root
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      containers.gui.basePath: /ui
+      containers.gui.apiBasePath: /
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: still validates legacy gui env fallback values
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      containers.gui.basePath: ""
+      containers.gui.apiBasePath: ""
+      containers.gui.env:
+        - name: GUI_BASE_PATH
+          value: /api
+        - name: API_BASE_PATH
+          value: /
+    asserts:
+      - failedTemplate:
+          errorMessage: "invalid configuration: when API_BASE_PATH=/, GUI_BASE_PATH cannot use a reserved backend route segment (api, admin, gui, guiconfig, info, refresh, stop, health, metrics, prometheus, operations, license, configuration, swagger-ui, swagger, routes, execute)"
+
+  - it: fails when gui base path is empty
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      containers.gui.basePath: ""
+      containers.gui.apiBasePath: /
+    asserts:
+      - failedTemplate:
+          errorMessage: "invalid configuration: containers.gui.basePath (or GUI_BASE_PATH) must not be empty"
+
+  - it: fails when gui base path does not start with slash
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      containers.gui.basePath: ui
+      containers.gui.apiBasePath: /
+    asserts:
+      - failedTemplate:
+          errorMessage: "invalid configuration: containers.gui.basePath (or GUI_BASE_PATH) must start with '/'"
+
+  - it: fails when gui base path is root and api base path is root
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      containers.gui.basePath: /
+      containers.gui.apiBasePath: /
+    asserts:
+      - failedTemplate:
+          errorMessage: "invalid configuration: when API_BASE_PATH=/, GUI_BASE_PATH cannot be '/'"
+
+  - it: fails when gateway gui paths do not include gui base path
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      master.gui.enabled: true
+      containers.gui.basePath: /ui
+      containers.gui.apiBasePath: /
+      gateway.gui.enabled: true
+      gateway.gui.paths:
+        - path: /portal
+          pathType: PathPrefix
+    asserts:
+      - failedTemplate:
+          errorMessage: "invalid configuration: gateway.gui.paths must include containers.gui.basePath (or GUI_BASE_PATH) when gateway.gui.enabled=true"
+
+  - it: rejects an empty listener list
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      gateway.enabled: true
+      gateway.listeners: []
+    asserts:
+      - failedTemplate:
+          errorMessage: "gateway.listeners must contain at least one listener when gateway.enabled is true"
+
+  - it: rejects null listeners
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      gateway.enabled: true
+      gateway.listeners: null
+    asserts:
+      - failedTemplate:
+          errorMessage: "gateway.listeners must contain at least one listener when gateway.enabled is true"
+
+  - it: rejects a missing name on a later listener of an existing Gateway
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      gateway.enabled: true
+      gateway.existing.enabled: true
+      gateway.existing.gatewayName: shared-gateway
+      gateway.listeners:
+        - name: http
+        - hostname: post.example.com
+    asserts:
+      - failedTemplate:
+          errorMessage: "gateway.listeners[1].name is required when gateway.enabled is true"
+
+  - it: rejects an empty listener name
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      gateway.enabled: true
+      gateway.listeners:
+        - name: ""
+          port: 80
+          protocol: HTTP
+    asserts:
+      - failedTemplate:
+          errorMessage: "gateway.listeners[0].name is required when gateway.enabled is true"
+
+  - it: rejects a missing port on a later managed listener
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      gateway.enabled: true
+      gateway.existing.enabled: false
+      gateway.listeners:
+        - name: http
+          port: 80
+          protocol: HTTP
+        - name: https
+          protocol: HTTPS
+    asserts:
+      - failedTemplate:
+          errorMessage: "gateway.listeners[1].port is required when gateway.existing.enabled is false"
+
+  - it: rejects a missing protocol on a managed listener
+    values:
+      - ./valid_v5_values.yaml
+    set:
+      gateway.enabled: true
+      gateway.existing.enabled: false
+      gateway.listeners:
+        - name: http
+          port: 80
+    asserts:
+      - failedTemplate:
+          errorMessage: "gateway.listeners[0].protocol is required when gateway.existing.enabled is false"

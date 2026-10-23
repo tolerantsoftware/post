@@ -1,0 +1,33 @@
+{{- if and .Values.gateway.enabled (not .Values.gateway.existing.enabled) -}}
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ include "tolerant-post.fullname" . }}-gateway
+  labels:
+    {{- include "tolerant-post.selectorLabels" . | nindent 4 }}
+spec:
+  gatewayClassName: {{ .Values.gateway.className }}
+  listeners:
+    {{- range .Values.gateway.listeners }}
+    - name: {{ .name }}
+      protocol: {{ .protocol }}
+      port: {{ .port }}
+      {{- with .hostname }}
+      hostname: {{ . | quote }}
+      {{- end }}
+      {{- with .tls }}
+      tls:
+        mode: {{ .mode | default "Terminate" }}
+        certificateRefs:
+          {{- range .certificateRefs }}
+          - name: {{ .name }}
+            {{- with .group }}
+            group: {{ . | quote }}
+            {{- end }}
+            {{- with .kind }}
+            kind: {{ . | quote }}
+            {{- end }}
+          {{- end }}
+      {{- end }}
+    {{- end }}
+{{- end }}

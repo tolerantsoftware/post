@@ -1,0 +1,9 @@
+{{- if and .Values.persistence.data.enabled (not .Values.persistence.data.existingClaim) }}
+{{ include "tolerant-post.renderPvc" (dict
+  "name" (printf "%s-post-data" (include "tolerant-post.fullname" .))
+  "keepPVCOnUninstall" .Values.persistence.keepPVCOnUninstall
+  "accessMode" .Values.persistence.data.accessMode
+  "storageClassName" .Values.persistence.data.storageClassName
+  "size" .Values.persistence.data.size
+) }}
+{{- end }}

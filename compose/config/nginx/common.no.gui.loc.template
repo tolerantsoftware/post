@@ -1,0 +1,65 @@
+# In case of basic auth or no auth remove the /auth location
+# In case of basic auth comment auth_basic and auth_basic_user_file in
+
+# effectively disabling the read timeout
+proxy_read_timeout 1d;
+
+# disable emitting nginx version
+server_tokens off;
+
+# Allow 100mb uploads
+client_max_body_size 101M;
+
+# Prefer forwarded values from ingress/reverse proxies when present.
+set $forwarded_proto $http_x_forwarded_proto;
+if ($forwarded_proto = "") { set $forwarded_proto $scheme; }
+
+set $effective_host $http_x_forwarded_host;
+if ($effective_host = "") { set $effective_host $host; }
+
+
+# prometheus endpoint should not be accessible
+location ${SERVER_CONTEXT_PATH}/prometheus {
+    return 403;
+}
+
+# backend
+location ~ ^${SERVER_CONTEXT_PATH}/(post|api|admin|gui|guiconfig|info|refresh|stop|health|metrics|operations|license|configuration|swagger-ui|swagger|routes|execute)(/.*)?$ {
+
+    # auth_basic           "Post Service";
+    # auth_basic_user_file /etc/nginx/htpasswd;
+
+    proxy_set_header   Host $effective_host;
+    proxy_set_header   X-Forwarded-Server $effective_host;
+    proxy_set_header   X-Real-IP $remote_addr;
+    proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header   X-Forwarded-Prefix "${SERVER_CONTEXT_PATH}";
+    proxy_set_header   X-Forwarded-Prefix-Present "true";
+    proxy_set_header   X-Forwarded-Host $effective_host;
+    proxy_set_header   X-Forwarded-Proto $forwarded_proto;
+    proxy_set_header   X-Forwarded-Port $forwarded_port;
+
+    rewrite            ^ $request_uri;
+    rewrite            ^${SERVER_CONTEXT_PATH}(.*)$ $1 break;
+    return 400;
+    proxy_pass         http://post_backend$uri;
+}
+
+
+#soap    location ${SERVER_CONTEXT_PATH}/soap {
+#soap        proxy_set_header   Host $effective_host;
+#soap        proxy_set_header   X-Forwarded-Server $effective_host;
+#soap        proxy_set_header   X-Real-IP $remote_addr;
+#soap        # proxy_set_header   X-Forwarded-For $host:$server_port;
+#soap        # The following can be used if the server is named and uses the default port (80)
+#soap        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+#soap        proxy_set_header   X-Forwarded-Prefix "${SERVER_CONTEXT_PATH}";
+#soap        proxy_set_header   X-Forwarded-Prefix-Present "true";
+#soap        proxy_set_header   X-Forwarded-Host $host:$forwarded_port;
+#soap        proxy_set_header   X-Forwarded-Proto $forwarded_proto;
+#soap
+#soap        rewrite            ^ $request_uri;
+#soap        rewrite            ^${SERVER_CONTEXT_PATH}(.*)$ $1 break;
+#soap        return 400;
+#soap        proxy_pass         http://post_soap$uri;
+#soap    }

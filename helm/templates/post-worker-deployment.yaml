@@ -1,0 +1,173 @@
+{{- $runtimeConfigMode := eq .Values.config.managementMode "runtime" -}}
+{{- $runtimeConfigSeed := and $runtimeConfigMode .Values.persistence.runtimeConfig.seedFromConfigMaps.enabled -}}
+{{- $declarativeConfigFilesMode := and (not $runtimeConfigMode) .Values.persistence.configFiles.enabled -}}
+{{- $isV6 := include "tolerant-post.isV6Engine" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "tolerant-post.fullname" . }}-post
+  labels:
+    {{- include "tolerant-post.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: post
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "tolerant-post.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: post
+  template:
+    metadata:
+      labels:
+        {{- include "tolerant-post.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: post
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "tolerant-post.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if $runtimeConfigSeed }}
+      initContainers:
+        {{- if $runtimeConfigSeed }}
+        - name: seed-runtime-config
+          image: {{ .Values.persistence.runtimeConfig.seedFromConfigMaps.image | quote }}
+          command:
+            - sh
+            - -ec
+            - |
+              mkdir -p /runtime-config
+              for src in /seed-config/*; do
+                [ -f "${src}" ] || continue
+                f="$(basename "${src}")"
+                if [ ! -f "/runtime-config/${f}" ]; then
+                  cp "${src}" "/runtime-config/${f}"
+                fi
+              done
+          volumeMounts:
+            - name: post-runtime-config-volume
+              mountPath: /runtime-config
+            - name: post-runtime-config-seed
+              mountPath: /seed-config
+              readOnly: true
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: post
+          image: {{ .Values.containers.post.image | default "tolerantsoftware/post:12.2" }}
+          imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
+          {{- with .Values.containers.post.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.containers.post.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.containers.post.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.containers.post.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            {{- include "tolerant-post.renderPostEnv" (dict "root" . "guiEnabled" "false") | nindent 12 }}
+          {{- if not $isV6 }}
+          envFrom:
+            - secretRef:
+                name: {{ include "tolerant-post.fullname" . }}-post-ad-license
+          {{- end }}
+          ports:
+            - containerPort: 8080
+              name: http
+          volumeMounts:
+            - name: {{ if $runtimeConfigMode }}post-runtime-config-volume{{ else if $declarativeConfigFilesMode }}post-config-files{{ else }}post-config-volume{{ end }}
+              mountPath: /opt/tolerant/config
+            {{- if or $runtimeConfigMode $declarativeConfigFilesMode }}
+            {{- if .Values.global.post.license }}
+            - name: post-license
+              mountPath: /opt/tolerant/config/post.lic
+              subPath: post.lic
+            {{- end }}
+            {{- if and .Values.global.post.v6LicenceFileName $isV6 }}
+            - name: post-ad-license
+              mountPath: {{ printf "/opt/tolerant/config/%s" .Values.global.post.v6LicenceFileName }}
+              subPath: {{ printf "%s" .Values.global.post.v6LicenceFileName }}
+            {{- end }}
+            {{- end }}
+            {{- if $isV6 }}
+            - name: dshm
+              mountPath: /dev/shm
+            {{- end }}
+            {{- if .Values.persistence.data.enabled }}
+            - name: post-data
+              mountPath: {{ .Values.persistence.data.mountPath }}
+            {{- end }}
+            {{- with .Values.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        {{- if $runtimeConfigMode }}
+        - name: post-runtime-config-volume
+          persistentVolumeClaim:
+            claimName: {{ default (printf "%s-post-runtime-config" (include "tolerant-post.fullname" .)) .Values.persistence.runtimeConfig.existingClaim }}
+        {{- if $runtimeConfigSeed }}
+        - name: post-runtime-config-seed
+          projected:
+            sources:
+              - configMap:
+                  name: {{ include "tolerant-post.postConfigMapName" . }}
+        {{- end }}
+        {{- else if not $declarativeConfigFilesMode }}
+        - name: post-config-volume
+          projected:
+            sources:
+              {{- include "tolerant-post.renderConfigProjectedSources" . | nindent 14 }}
+        {{- end }}
+        {{- if or $runtimeConfigMode $declarativeConfigFilesMode }}
+        {{- if .Values.global.post.license }}
+        - name: post-license
+          secret:
+            secretName: {{ include "tolerant-post.fullname" . }}-post-license
+        {{- end }}
+        {{- if and .Values.global.post.v6LicenceFileName $isV6 }}
+        - name: post-ad-license
+          secret:
+            secretName: {{ include "tolerant-post.fullname" . }}-post-ad-license
+        {{- end }}
+        {{- end }}
+        {{- if .Values.persistence.configFiles.enabled }}
+        - name: post-config-files
+          persistentVolumeClaim:
+            claimName: {{ default (printf "%s-post-config-files" (include "tolerant-post.fullname" .)) .Values.persistence.configFiles.existingClaim }}
+        {{- end }}
+        {{- if .Values.persistence.data.enabled }}
+        - name: post-data
+          persistentVolumeClaim:
+            claimName: {{ default (printf "%s-post-data" (include "tolerant-post.fullname" .)) .Values.persistence.data.existingClaim }}
+        {{- end }}
+        {{- if $isV6 }}
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Gi
+        {{- end }}
+        {{- with .Values.volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}

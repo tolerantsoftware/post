@@ -1,0 +1,38 @@
+suite: post service
+templates:
+  - templates/post-service.yaml
+tests:
+  - it: renders backend service port by default
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: spec.ports[0].name
+          value: http
+      - equal:
+          path: spec.ports[0].port
+          value: 8080
+      - hasDocuments:
+          count: 1
+      - isNull:
+          path: spec.ports[1]
+
+  - it: renders prometheus annotations when metrics are enabled
+    set:
+      metrics.enabled: true
+      metrics.path: /prometheus
+      metrics.port: "8080"
+      metrics.scheme: http
+    asserts:
+      - equal:
+          path: metadata.annotations["prometheus.io/scrape"]
+          value: "true"
+      - equal:
+          path: metadata.annotations["prometheus.io/path"]
+          value: /prometheus
+      - equal:
+          path: metadata.annotations["prometheus.io/port"]
+          value: "8080"
+      - equal:
+          path: metadata.annotations["prometheus.io/scheme"]
+          value: http

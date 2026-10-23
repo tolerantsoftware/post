@@ -1,0 +1,41 @@
+suite: metrics ServiceMonitor
+templates:
+  - templates/servicemonitor.yaml
+tests:
+  - it: does not render ServiceMonitor by default
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders ServiceMonitor when metrics and ServiceMonitor are enabled
+    set:
+      metrics.enabled: true
+      metrics.serviceMonitor.enabled: true
+      metrics.path: /prometheus
+      metrics.scheme: http
+      metrics.serviceMonitor.interval: 15s
+      metrics.serviceMonitor.scrapeTimeout: 5s
+    asserts:
+      - isKind:
+          of: ServiceMonitor
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/name"]
+          value: tolerant-post
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/instance"]
+          value: RELEASE-NAME
+      - equal:
+          path: spec.endpoints[0].port
+          value: http
+      - equal:
+          path: spec.endpoints[0].path
+          value: /prometheus
+      - equal:
+          path: spec.endpoints[0].scheme
+          value: http
+      - equal:
+          path: spec.endpoints[0].interval
+          value: 15s
+      - equal:
+          path: spec.endpoints[0].scrapeTimeout
+          value: 5s

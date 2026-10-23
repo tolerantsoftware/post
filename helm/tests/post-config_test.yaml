@@ -1,0 +1,23 @@
+suite: post config
+templates:
+  - templates/post-configmap.yaml
+tests:
+  - it: Renders V6 config
+    template: templates/post-configmap.yaml
+    documentSelector:
+      path: metadata.name
+      value: RELEASE-NAME-tolerant-post-post-config-v6
+    asserts:
+      - notMatchRegex:
+          path: data["postserviceconfig.xml"]
+          pattern: 'engineVersion="V5"'
+
+  - it: Renders V5 config
+    template: templates/post-configmap.yaml
+    documentSelector:
+      path: metadata.name
+      value: RELEASE-NAME-tolerant-post-post-config-v5
+    asserts:
+      - matchRegex:
+          path: data["postserviceconfig.xml"]
+          pattern: 'engineVersion="V5"'

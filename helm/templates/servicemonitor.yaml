@@ -1,0 +1,25 @@
+{{- if and .Values.metrics.enabled .Values.metrics.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "tolerant-post.fullname" . }}-post
+  labels:
+    {{- include "tolerant-post.labels" . | nindent 4 }}
+    {{- with .Values.metrics.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ default .Release.Namespace .Values.metrics.serviceMonitor.namespace | quote }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "tolerant-post.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  endpoints:
+    - port: http
+      scheme: {{ .Values.metrics.scheme | quote }}
+      path: {{ .Values.metrics.path | quote }}
+      interval: {{ .Values.metrics.serviceMonitor.interval | quote }}
+      scrapeTimeout: {{ .Values.metrics.serviceMonitor.scrapeTimeout | quote }}
+{{- end }}

@@ -1,0 +1,23 @@
+suite: post config-files pvc
+templates:
+  - templates/post-config-files-pvc.yaml
+tests:
+  - it: renders config-files pvc by default
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: PersistentVolumeClaim
+
+  - it: renders config-files pvc without existingClaim
+    set:
+      persistence.configFiles.enabled: true
+      persistence.configFiles.existingClaim: ""
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: PersistentVolumeClaim
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-tolerant-post-post-config-files

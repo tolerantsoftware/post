@@ -1,0 +1,142 @@
+services:
+
+  backend:
+    image: ${TPOST_DOCKER_REGISTRY}/post:${TPOST_VERSION}
+    restart: unless-stopped
+    mem_limit: 6g
+    mem_reservation: 2g
+    shm_size: 1g
+    # Uncomment the lines below in case of Rocky/RHEL/CentOS with infinite nofile limits
+    # ulimits:
+    #   nofile:
+    #     soft: 65536
+    #     hard: 131072
+    cpus: 4
+    # Uncomment the below line and set user and group id (from host system) to use it in container
+    # user: "$UID:$GID"
+    volumes:
+      # persist post logs
+      - post-logs:/opt/tolerant/logs
+      # Example for custom configuration via volume:
+      - post-config:/opt/tolerant/config
+      # Example for custom data via volume
+      - post-data:/opt/tolerant/data
+      # Example for custom protocols via volume
+      - post-protocols:/opt/tolerant/protocols
+    environment:
+      # number of processors to be used by the JVM
+      - JVM_OPT_ACTIVE_PROCESSOR_COUNT=4
+      - TZ=${TZ}
+      # If no prometheus export is wanted, set to false
+      - TL_PROMETHEUS_METRICS_ENABLED=true
+      # OpenTelemetry tracing and log export are independently configurable
+      - MICRONAUT_OTEL_ENABLED=${MICRONAUT_OTEL_ENABLED}
+      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME}
+      - OTEL_TRACES_EXPORTER=${OTEL_TRACES_EXPORTER}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
+      - OTEL_EXPORTER_OTLP_PROTOCOL=${OTEL_EXPORTER_OTLP_PROTOCOL}
+      - OTEL_METRICS_EXPORTER=${OTEL_METRICS_EXPORTER}
+      - OTEL_LOGS_EXPORTER=${OTEL_LOGS_EXPORTER}
+      - OTEL_LOGS_LEVEL=${OTEL_LOGS_LEVEL}
+      - OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+      - OTEL_RESOURCE_ATTRIBUTES=${OTEL_RESOURCE_ATTRIBUTES}
+      # comment this line in to change the logging profile. possible values: anonymized, console, request, jdbc or multi-project
+      # - LOGGING_PROFILE=console
+      # if no gui is wanted, set to false
+      - GUI_ENABLED=true
+    depends_on:
+      - tempo
+
+  gui:
+    image: ${TPOST_DOCKER_REGISTRY}/post-gui:${TPOST_VERSION}
+    restart: unless-stopped
+    mem_limit: 2g
+    mem_reservation: 512M
+    environment:
+      - GUI_BASE_PATH=/postService
+      - API_BASE_PATH=/postService
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  tempo:
+    image: grafana/tempo:${TEMPO_VERSION}
+    command: [ "-config.file=/etc/tempo/tempo.yml" ]
+    volumes:
+      - type: bind
+        source: ./config/tempo/tempo.yml
+        target: /etc/tempo/tempo.yml
+        read_only: true
+      - tempo-data:/var/tempo
+    expose:
+      - 3200
+      - 4318
+
+  prometheus:
+    image: prom/prometheus:${PROMETHEUS_VERSION}
+    volumes:
+      - type: bind
+        source: ./config/prometheus/prometheus.yml
+        target: /etc/prometheus/prometheus.yml
+        read_only: true
+      - prometheus-data:/prometheus
+    expose:
+      - 9090
+    depends_on:
+      - backend
+
+  grafana:
+    image: grafana/grafana:${GRAFANA_VERSION}
+    volumes:
+      - ./config/grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=tolerant
+      - GF_SECURITY_ADMIN_PASSWORD=tolerant
+    ports:
+      - ${GRAFANA_PORT}:3000
+    depends_on:
+      - prometheus
+
+  proxy:
+    image: nginx:${NGINX_VERSION}-alpine
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: ./config/nginx/common.loc.template
+        target: /etc/nginx/templates/common.loc.template
+        read_only: true
+      - type: bind
+        source: ./config/nginx/default.conf.template
+        target: /etc/nginx/templates/default.conf.template
+        read_only: true
+
+      # persist nginx logs
+      - nginx-logs:/etc/nginx/logs
+    environment:
+      - PROXY_HOST_PORT=${NGINX_PORT}
+      - GUI_BASE_PATH=/postService
+      - SERVER_CONTEXT_PATH=/postService
+
+    ports:
+      - ${NGINX_PORT}:8080
+    depends_on: 
+      backend:
+        condition: service_healthy
+      gui:
+        condition: service_healthy
+
+volumes:
+   # Volume for persistent data of keycloak
+   nginx-logs:
+   post-logs:
+   grafana-data:
+   prometheus-data:
+   tempo-data:
+   post-protocols:
+   # Examples for external created volumes with custom configuration and data
+   post-config:
+   #   external: true
+   post-data:
+   #   external: true

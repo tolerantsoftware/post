@@ -1,0 +1,98 @@
+{{- if .Values.gateway.enabled -}}
+{{- $guiPaths := .Values.gateway.gui.paths | default (list) -}}
+{{- $backendServiceName := printf "%s-%s" (include "tolerant-post.fullname" .) (ternary "post-master" "post" .Values.master.enabled) -}}
+{{- $guiRedirectPath := dict "value" "/ui" -}}
+{{- if gt (len $guiPaths) 0 }}
+  {{- $_ := set $guiRedirectPath "value" ((index $guiPaths 0).path | toString) -}}
+{{- end }}
+{{- $normalizedGuiRedirectPath := trimSuffix "/" (get $guiRedirectPath "value") -}}
+{{- $hostnames := list -}}
+{{- $hasCatchAllListener := false -}}
+{{- range .Values.gateway.listeners }}
+  {{- if .hostname }}
+    {{- $hostnames = append $hostnames .hostname -}}
+  {{- else }}
+    {{- $hasCatchAllListener = true -}}
+  {{- end }}
+{{- end }}
+{{- $parentGateway :=  ternary .Values.gateway.existing.gatewayName (printf "%s-gateway" (include "tolerant-post.fullname" .)) .Values.gateway.existing.enabled  -}}
+
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "tolerant-post.fullname" . }}-http-route
+  labels:
+    {{- include "tolerant-post.selectorLabels" . | nindent 4 }}
+spec:
+  {{- if (gt (len (.Values.gateway.listeners | default (list))) 0) }}
+  {{- if and $hostnames (not $hasCatchAllListener) }}
+  hostnames:
+    {{- toYaml $hostnames | nindent 4 }}
+  {{- end }}
+  parentRefs:
+    {{- range .Values.gateway.listeners }}
+    - name: {{ $parentGateway }}
+      {{- if $.Values.gateway.existing.enabled }}
+      {{- with $.Values.gateway.existing.gatewayNamespace }}
+      namespace: {{ . | quote }}
+      {{- end }}
+      {{- end }}
+      sectionName: {{ .name | quote }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- if and .Values.master.enabled .Values.master.gui.enabled .Values.gateway.gui.enabled .Values.gateway.gui.redirectToTrailingSlash (ne $normalizedGuiRedirectPath "") (ne $normalizedGuiRedirectPath "/") }}
+    - matches:
+        - path:
+            type: Exact
+            value: {{ $normalizedGuiRedirectPath }}
+      filters:
+        - type: RequestRedirect
+          requestRedirect:
+            path:
+              type: ReplaceFullPath
+              replaceFullPath: {{ printf "%s/" $normalizedGuiRedirectPath }}
+            statusCode: 301
+    {{- end }}
+    {{- if $.Values.master.enabled }}
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /post
+      backendRefs:
+          - name: {{ include "tolerant-post.fullname" $ }}-post
+            port: 8080
+      {{- end }}
+    {{- if gt (len $.Values.gateway.backend.paths) 0 }}
+    {{- range $.Values.gateway.backend.paths }}
+    - matches:
+        - path:
+            type: {{ $.Values.gateway.backend.pathType }}
+            value: {{ . }}
+      backendRefs:
+        - name: {{ $backendServiceName }}
+          port: 8080
+    {{- end }}
+    {{- else }}
+    {{- range .Values.gateway.paths }}
+    - matches:
+        - path:
+            type: {{ .pathType }}
+            value: {{ .path }}
+      backendRefs:
+        - name: {{ $backendServiceName }}
+          port: 8080
+    {{- end }}
+    {{- end }}
+    {{- if and $.Values.gateway.gui.enabled $.Values.master.enabled $.Values.master.gui.enabled }}
+    {{- range $guiPath := $guiPaths }}
+    - matches:
+      - path:
+          type: {{ $guiPath.pathType }}
+          value: {{ $guiPath.path }}
+      backendRefs:
+        - name: {{ include "tolerant-post.fullname" $ }}-post-master
+          port: {{ $.Values.containers.gui.port }}
+      {{- end }}
+      {{- end }}
+{{- end }}

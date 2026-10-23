@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "tolerant-post.fullname" . }}-post-config-v5
+data:
+  postserviceconfig.xml: |
+{{ .Files.Get "files/postserviceconfig_v5.xml" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "tolerant-post.fullname" . }}-post-config-v6
+data:
+  postserviceconfig.xml: |
+{{ .Files.Get "files/postserviceconfig_v6.xml" | indent 4 }}

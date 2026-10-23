@@ -1,0 +1,27 @@
+# In case of basic auth or no auth remove the /auth location
+# In case of basic auth comment auth_basic and auth_basic_user_file in
+
+upstream post_backend {
+   server backend:8080;
+}
+
+#soapupstream post_soap {
+#soap   server soap:8080;
+#soap}
+
+# server configuration
+server {
+    listen       8443 ssl;
+    server_name  $NGINX_SERVER_NAME;
+
+    ssl_certificate /etc/ssl/certs/$CERT_FILENAME;
+    ssl_certificate_key /etc/ssl/private/$CERT_PRIVATE_KEY_FILENAME;
+
+    set $forwarded_port $http_x_forwarded_port;
+    if ($forwarded_port = "") { set $forwarded_port $PROXY_HOST_HTTPS_PORT; }
+
+    # keycloak
+    include /etc/nginx/conf.d/keycloak*.loc;
+    include /etc/nginx/conf.d/common.no.gui.loc;
+
+}

@@ -1,0 +1,50 @@
+suite: Gateway resource
+templates:
+  - templates/gateway-resource.yaml
+tests:
+  - it: renders the configured Gateway
+    asserts:
+      - isKind:
+          of: Gateway
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-tolerant-post-gateway
+      - equal:
+          path: spec.gatewayClassName
+          value: nginx
+      - equal:
+          path: spec.listeners[0].hostname
+          value: post.tolerant-software.de
+  - it: renders custom listener settings
+    set:
+      gateway.className: custom-gateway
+      gateway.listeners:
+        - name: https
+          protocol: HTTPS
+          port: 443
+          hostname: post.example.com
+          tls:
+            mode: Terminate
+            certificateRefs:
+              - name: post-tls
+                kind: Secret
+    asserts:
+      - equal:
+          path: spec.gatewayClassName
+          value: custom-gateway
+      - equal:
+          path: spec.listeners[0].tls.certificateRefs[0].name
+          value: post-tls
+  - it: does not render the Gateway when disabled
+    set:
+      gateway.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: does not render a chart-managed Gateway when an existing Gateway is configured
+    set:
+      gateway.existing.enabled: true
+      gateway.existing.gatewayName: shared-gateway
+    asserts:
+      - hasDocuments:
+          count: 0

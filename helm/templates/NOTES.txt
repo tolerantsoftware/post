@@ -1,0 +1,91 @@
+TOLERANT Post has been installed.
+
+Release:   {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+Engine:    {{ include "tolerant-post.engineVersion" . }}
+
+Workloads:
+  Worker: {{ include "tolerant-post.fullname" . }}-post ({{ .Values.replicaCount }} replica(s))
+{{- if .Values.master.enabled }}
+  Master: {{ include "tolerant-post.fullname" . }}-post-master
+{{- end }}
+
+Services:
+  Worker: {{ include "tolerant-post.fullname" . }}-post:8080
+{{- if .Values.master.enabled }}
+  Master: {{ include "tolerant-post.fullname" . }}-post-master:8080
+{{- if .Values.master.gui.enabled }}
+  GUI:    {{ include "tolerant-post.fullname" . }}-post-master:{{ int .Values.containers.gui.port }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.gateway.enabled }}
+Gateway API:
+  Gateway: {{ include "tolerant-post.fullname" . }}-gateway
+  Listener host(s):
+{{- range .Values.gateway.listeners }}
+    {{ default "*" .hostname }}:{{ .port }} ({{ .name }})
+{{- end }}
+{{- if .Values.gateway.gui.enabled }}
+{{- range .Values.gateway.gui.paths }}
+  GUI path: {{ .path }}
+{{- end }}
+{{- end }}
+{{- else }}
+Gateway API resources are disabled.
+{{- end }}
+
+Configuration:
+{{- if eq .Values.config.managementMode "runtime" }}
+  Mode: runtime
+  PVC:  {{ default (printf "%s-post-runtime-config" (include "tolerant-post.fullname" .)) .Values.persistence.runtimeConfig.existingClaim }}
+{{- if .Values.persistence.runtimeConfig.seedFromConfigMaps.enabled }}
+  Missing packaged configuration files are seeded into the runtime PVC.
+{{- end }}
+{{- else if .Values.persistence.configFiles.enabled }}
+  Mode: declarative, customer-managed PVC
+  PVC:  {{ default (printf "%s-post-config-files" (include "tolerant-post.fullname" .)) .Values.persistence.configFiles.existingClaim }}
+{{- if not .Values.persistence.configFiles.existingClaim }}
+
+  WARNING: The chart-created configuration PVC is empty by design.
+  Copy the complete required customer configuration into the PVC, then
+  restart the enabled Post Deployments and verify application readiness.
+{{- end }}
+{{- else }}
+  Mode: declarative, packaged read-only ConfigMap
+{{- end }}
+
+{{- $postPodCount := add (int .Values.replicaCount) (ternary 1 0 .Values.master.enabled) }}
+{{- $configAccessMode := "" }}
+{{- if eq .Values.config.managementMode "runtime" }}
+{{- $configAccessMode = .Values.persistence.runtimeConfig.accessMode }}
+{{- else if .Values.persistence.configFiles.enabled }}
+{{- $configAccessMode = .Values.persistence.configFiles.accessMode }}
+{{- end }}
+{{- if and (gt $postPodCount 1) (eq $configAccessMode "ReadWriteOnce") }}
+
+Storage notice:
+  Multiple Post pods use a ReadWriteOnce configuration PVC. This is suitable
+  when the pods run on the same node, for example Docker Desktop. For a
+  distributed cluster, use ReadWriteMany, a suitable shared existing claim,
+  or enforce pod co-location according to the storage backend.
+{{- end }}
+
+License:
+{{- if eq (include "tolerant-post.engineVersion" .) "V6" }}
+  V6 license file: {{ .Values.global.post.v6LicenceFileName }}
+{{- else }}
+  V5 unlock codes are loaded from Secret
+  {{ include "tolerant-post.fullname" . }}-post-ad-license.
+{{- end }}
+
+Manual restart after configuration or license changes:
+  kubectl rollout restart deployment/{{ include "tolerant-post.fullname" . }}-post -n {{ .Release.Namespace }}
+  kubectl rollout status deployment/{{ include "tolerant-post.fullname" . }}-post -n {{ .Release.Namespace }}
+{{- if .Values.master.enabled }}
+  kubectl rollout restart deployment/{{ include "tolerant-post.fullname" . }}-post-master -n {{ .Release.Namespace }}
+  kubectl rollout status deployment/{{ include "tolerant-post.fullname" . }}-post-master -n {{ .Release.Namespace }}
+{{- end }}
+
+See the chart README for configuration preparation, reference-data copying,
+PowerShell examples, Gateway API settings, and operational guidance.

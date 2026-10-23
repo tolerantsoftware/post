@@ -1,0 +1,7 @@
+# Example installation values for Informatica IDVE / Address Verification V6.
+# Copy the licensed file into helm/tolerant-post/files/v6/ and set its exact
+# filename here. Do not include the files/v6/ directory in this value.
+global:
+  post:
+    engineVersion: V6
+    v6LicenceFileName: YOUR_LICENSE_FILE.LIC

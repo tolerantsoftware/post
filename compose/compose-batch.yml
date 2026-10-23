@@ -1,0 +1,43 @@
+services:
+  batch:
+    image: ${TPOST_DOCKER_REGISTRY}/post:${TPOST_VERSION}
+    entrypoint: ["postBatch.sh", "examples/post_batch_example/config/post_batch_example.xml", "postProject-BATCH_MODE", "postProfile-BATCH_MODE"]
+    mem_limit: 6g
+    mem_reservation: 2g
+    shm_size: 1g
+    # Uncomment the lines below in case of Rocky/RHEL/CentOS with infinite nofile limits
+    # ulimits:
+    #   nofile:
+    #     soft: 65536
+    #     hard: 131072
+    cpus: 4
+    healthcheck:
+      test: [ "NONE" ]
+    volumes:
+      # persist post logs
+      - post-logs:/opt/tolerant/logs
+      # Example for custom configuration via volume:
+      - post-config:/opt/tolerant/config
+      # Example for custom data via volume
+      - post-data:/opt/tolerant/data
+      # Example for custom protocols via volume
+      - post-protocols:/opt/tolerant/protocols
+    environment:
+      # number of processors to be used by the JVM
+      - JVM_OPT_ACTIVE_PROCESSOR_COUNT=4
+      - TZ=${TZ}
+      # If no prometheus export is wanted, set to false
+      - TL_PROMETHEUS_METRICS_ENABLED=false
+      - METRICS_ENABLED=false
+      # comment this line in to change the logging profile. possible values: anonymized, console, request, jdbc or multi-project
+      # - LOGGING_PROFILE=console
+
+
+volumes:
+  post-logs:
+  post-protocols:
+  # Examples for external created volumes with custom configuration and data
+  post-config:
+  #   external: true
+  post-data:
+  #   external: true

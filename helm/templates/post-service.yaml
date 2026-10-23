@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "tolerant-post.fullname" . }}-post
+  {{- if or .Values.metrics.enabled (gt (len .Values.metrics.service.annotations) 0) }}
+  annotations:
+    {{- if .Values.metrics.enabled }}
+    prometheus.io/scrape: "true"
+    prometheus.io/path: {{ .Values.metrics.path | quote }}
+    prometheus.io/port: {{ .Values.metrics.port | quote }}
+    prometheus.io/scheme: {{ .Values.metrics.scheme | quote }}
+    {{- end }}
+    {{- with .Values.metrics.service.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "tolerant-post.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: post

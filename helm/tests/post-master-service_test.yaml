@@ -1,0 +1,57 @@
+suite: post master service
+templates:
+  - templates/post-master-service.yaml
+tests:
+  - it: does render master service by default
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-tolerant-post-post-master
+      - contains:
+          path: spec.ports
+          content:
+            name: gui-http
+            port: 8081
+            targetPort: 8081
+            protocol: TCP
+
+  - it: does not render master service when master is disabled
+    set:
+      master.enabled: false
+      master.gui.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: omits gui port when master gui is disabled
+    set:
+      master.enabled: true
+      master.gui.enabled: false
+    asserts:
+      - notContains:
+          path: spec.ports
+          content:
+            name: gui-http
+
+  - it: renders prometheus annotations on master service when metrics are enabled
+    set:
+      master.enabled: true
+      metrics.enabled: true
+      metrics.path: /prometheus
+      metrics.port: "8080"
+      metrics.scheme: http
+    asserts:
+      - equal:
+          path: metadata.annotations["prometheus.io/scrape"]
+          value: "true"
+      - equal:
+          path: metadata.annotations["prometheus.io/path"]
+          value: /prometheus
+      - equal:
+          path: metadata.annotations["prometheus.io/port"]
+          value: "8080"
+      - equal:
+          path: metadata.annotations["prometheus.io/scheme"]
+          value: http

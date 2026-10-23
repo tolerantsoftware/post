@@ -1,0 +1,9 @@
+{{- if and (eq .Values.config.managementMode "runtime") (not .Values.persistence.runtimeConfig.existingClaim) }}
+{{ include "tolerant-post.renderPvc" (dict
+  "name" (printf "%s-post-runtime-config" (include "tolerant-post.fullname" .))
+  "keepPVCOnUninstall" .Values.persistence.keepPVCOnUninstall
+  "accessMode" .Values.persistence.runtimeConfig.accessMode
+  "storageClassName" .Values.persistence.runtimeConfig.storageClassName
+  "size" .Values.persistence.runtimeConfig.size
+) }}
+{{- end }}

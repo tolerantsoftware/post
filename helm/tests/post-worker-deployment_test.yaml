@@ -1,0 +1,210 @@
+suite: post worker deployment
+templates:
+  - templates/post-worker-deployment.yaml
+tests:
+  - it: renders worker Deployment by default
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-tolerant-post-post
+      - equal:
+          path: spec.replicas
+          value: 1
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: post
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 8080
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].name
+          value: post-config-files
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: post-config-files
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: post-data
+            mountPath: /opt/tolerant/data
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: dshm
+            mountPath: /dev/shm
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: dshm
+            emptyDir:
+              medium: Memory
+              sizeLimit: 1Gi
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MICRONAUT_OTEL_ENABLED
+            value: "false"
+
+  - it: renders OTLP tracing configuration when enabled
+    set:
+      telemetry.tracing.enabled: true
+      telemetry.tracing.endpoint: http://otel-collector.observability:4318
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MICRONAUT_OTEL_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: http://otel-collector.observability:4318
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_TRACES_SAMPLER_ARG
+            value: "0.05"
+
+  - it: renders OTLP log export configuration when enabled
+    set:
+      telemetry.logs.enabled: true
+      telemetry.logs.endpoint: http://loki.observability:3100/otlp/v1/logs
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MICRONAUT_OTEL_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_TRACES_EXPORTER
+            value: none
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_LOGS_EXPORTER
+            value: otlp
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
+            value: http://loki.observability:3100/otlp/v1/logs
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_LOGS_LEVEL
+            value: info
+
+  - it: applies replica count image pull policy pod labels and annotations
+    set:
+      replicaCount: 3
+      image.pullPolicy: Always
+      podLabels.worker: "true"
+      podAnnotations.checksum/config: abc123
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: Always
+      - equal:
+          path: spec.template.metadata.labels.worker
+          value: "true"
+      - equal:
+          path: spec.template.metadata.annotations["checksum/config"]
+          value: abc123
+
+  - it: mounts declarative config files pvc when enabled
+    set:
+      config.managementMode: declarative
+      persistence.configFiles.enabled: true
+      persistence.configFiles.existingClaim: custom-config-files
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].name
+          value: post-config-files
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: post-config-files
+      - equal:
+          path: spec.template.spec.volumes[0].persistentVolumeClaim.claimName
+          value: custom-config-files
+
+  - it: mounts runtime config pvc and seed config when runtime mode is enabled
+    set:
+      config.managementMode: runtime
+      persistence.runtimeConfig.existingClaim: custom-runtime-config
+      persistence.runtimeConfig.seedFromConfigMaps.enabled: true
+      persistence.runtimeConfig.seedFromConfigMaps.image: busybox:1.37
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: seed-runtime-config
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: busybox:1.37
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].name
+          value: post-runtime-config-volume
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: post-runtime-config-volume
+      - equal:
+          path: spec.template.spec.volumes[0].persistentVolumeClaim.claimName
+          value: custom-runtime-config
+      - equal:
+          path: spec.template.spec.volumes[1].name
+          value: post-runtime-config-seed
+
+  - it: omits runtime config seed container when disabled
+    set:
+      config.managementMode: runtime
+      persistence.runtimeConfig.seedFromConfigMaps.enabled: false
+    asserts:
+      - isNull:
+          path: spec.template.spec.initContainers
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].name
+          value: post-runtime-config-volume
+
+  - it: uses v5 license secret as envFrom when engine is v5
+    set:
+      global.post.engineVersion: V5
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].envFrom[0].secretRef.name
+          value: RELEASE-NAME-tolerant-post-post-ad-license
+
+  - it: mounts post data pvc by default and respects existing claim
+    set:
+      persistence.data.existingClaim: custom-post-data
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[2].name
+          value: post-data
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[2].mountPath
+          value: /opt/tolerant/data
+      - equal:
+          path: spec.template.spec.volumes[1].persistentVolumeClaim.claimName
+          value: custom-post-data
+
+  - it: omits post data volume when persistence data is disabled
+    set:
+      persistence.data.enabled: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: post-data
+      - notContains:
+          path: spec.template.spec.volumes
+          content:
+            name: post-data

@@ -1,0 +1,41 @@
+suite: runtime config pvc
+templates:
+  - templates/post-runtime-config-pvc.yaml
+tests:
+  - it: does render runtime config pvc by default
+    set:
+      config.managementMode: runtime
+      persistence.configFiles.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: PersistentVolumeClaim
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-tolerant-post-post-runtime-config
+
+  - it: renders not runtime config pvc when declarative mode is enabled
+    set:
+      config.managementMode: declarative
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: uses configured runtime pvc settings
+    set:
+      config.managementMode: runtime
+      persistence.configFiles.enabled: false
+      persistence.runtimeConfig.accessMode: ReadWriteMany
+      persistence.runtimeConfig.size: 8Gi
+      persistence.runtimeConfig.storageClassName: scratch-storage-class
+    asserts:
+      - equal:
+          path: spec.accessModes[0]
+          value: ReadWriteMany
+      - equal:
+          path: spec.storageClassName
+          value: scratch-storage-class
+      - equal:
+          path: spec.resources.requests.storage
+          value: 8Gi

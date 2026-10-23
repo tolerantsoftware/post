@@ -1,0 +1,5 @@
+{{- include "tolerant-post.validate.core" . -}}
+{{- include "tolerant-post.validate.runtimeConfig" . -}}
+{{- include "tolerant-post.validate.guiGatewaySecurityMetrics" . -}}
+{{- include "tolerant-post.validate.guiBasePath" . -}}
+{{- include "tolerant-post.validate.gateway" . -}}

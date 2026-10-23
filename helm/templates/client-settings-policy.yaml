@@ -1,0 +1,15 @@
+{{- if and .Values.gateway.enabled (eq (.Values.gateway.className) "nginx") -}}
+apiVersion: gateway.nginx.org/v1alpha1
+kind: ClientSettingsPolicy
+metadata:
+  name: {{ include "tolerant-post.fullname" . }}-client-settings
+  labels:
+    {{- include "tolerant-post.selectorLabels" . | nindent 4 }}
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: {{ include "tolerant-post.fullname" . }}-http-route
+  body:
+    maxSize: {{ .Values.gateway.clientMaxBodySize | default "101m" | quote }}
+{{- end }}

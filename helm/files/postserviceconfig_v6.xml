@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration SYSTEM "config/config.dtd" >
+<configuration version="12.0">
+	<postRuntime id="runtime-1" maxMemoryUsageMB="3584" threadCount="$THREAD_COUNT" queueSize="100" serviceTimeout="10000" cacheSize="NONE">
+		<referenceDatabase id="referenceDB_BI" country="ALL" filepath="$TLDATA" type="BATCH_INTERACTIVE" preloading="FULL"/>
+		<referenceDatabase id="referenceDB_FC" country="ALL" filepath="$TLDATA" type="FASTCOMPLETION" preloading="FULL"/>
+	</postRuntime>
+	<postProject id="postProject-1" name="Post Service Example_Interactive" author="TOLERANT Software" active="Y" >
+		<serviceInput id="serviceInput-1">
+			<serviceInputField id="serviceInputField-1" optional="N" lengthErrorAction="NONE" name="Country" type="C" trimType="B" length="0"/>
+			<serviceInputField id="serviceInputField-2" optional="N" lengthErrorAction="NONE" name="Province" type="C" trimType="B" length="0"/>
+			<serviceInputField id="serviceInputField-3" optional="N" lengthErrorAction="NONE" name="Street" type="C" trimType="B" length="0"/>
+			<serviceInputField id="serviceInputField-4" optional="N" lengthErrorAction="NONE" name="Number" type="C" trimType="B" length="0"/>
+			<serviceInputField id="serviceInputField-5" optional="N" lengthErrorAction="NONE" name="PostalCode" type="C" trimType="B" length="0"/>
+			<serviceInputField id="serviceInputField-6" optional="N" lengthErrorAction="NONE" name="City" type="C" trimType="B" length="0"/>
+			<serviceInputField id="serviceInputField-7" optional="N" lengthErrorAction="NONE" name="SubCity" type="C" trimType="B" length="0"/>
+		</serviceInput>
+		<serviceOutput id="serviceOutput-1">
+			<serviceOutputField id="serviceOutputField-1" name="Country" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-2" name="Country_out" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-3" name="Province" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-4" name="Province_out" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-5" name="Street" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-6" name="Street_out" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-7" name="Number" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-8" name="Number_out" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-9" name="PostalCode" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-10" name="PostalCode_out" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-11" name="City" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-12" name="City_out" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-13" name="SubCity" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-14" name="SubCity_out" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-15" name="Returncode" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-16" name="ResultPercentage" type="C" trimType="B" length="0"/>
+		</serviceOutput>
+		<postProfile id="postProfile-1" name="postProfile-1" mode="INTERACTIVE" matchingAlternatives="ALL" matchingScope="ALL">
+		</postProfile>
+		<inputFieldmap id="inputFieldmap-1" mode="SERVICE">
+			<inputFieldmapItem id="inputFieldmapItem-1" inputRef="serviceInput-1" inputFieldRef="serviceInputField-1" internalFieldName="post.Country"/>
+			<inputFieldmapItem id="inputFieldmapItem-2" inputRef="serviceInput-1" inputFieldRef="serviceInputField-2" internalFieldName="post.Province1"/>
+			<inputFieldmapItem id="inputFieldmapItem-3" inputRef="serviceInput-1" inputFieldRef="serviceInputField-3" internalFieldName="post.Street"/>
+			<inputFieldmapItem id="inputFieldmapItem-4" inputRef="serviceInput-1" inputFieldRef="serviceInputField-4" internalFieldName="post.Number"/>
+			<inputFieldmapItem id="inputFieldmapItem-5" inputRef="serviceInput-1" inputFieldRef="serviceInputField-5" internalFieldName="post.PostalCode"/>
+			<inputFieldmapItem id="inputFieldmapItem-6" inputRef="serviceInput-1" inputFieldRef="serviceInputField-6" internalFieldName="post.City"/>
+			<inputFieldmapItem id="inputFieldmapItem-7" inputRef="serviceInput-1" inputFieldRef="serviceInputField-7" internalFieldName="post.SubCity"/>
+		</inputFieldmap>
+		<outputFieldmap id="outputFieldmap-1" outputRef="serviceOutput-1">
+			<outputFieldmapItem id="outputFieldmapItem-1" outputFieldRef="serviceOutputField-1" inputRef="serviceInput-1" inputFieldRef="serviceInputField-1"/>
+			<outputFieldmapItem id="outputFieldmapItem-2" outputFieldRef="serviceOutputField-2" internalFieldName="post.Country"/>
+			<outputFieldmapItem id="outputFieldmapItem-3" outputFieldRef="serviceOutputField-3" inputRef="serviceInput-1" inputFieldRef="serviceInputField-2"/>
+			<outputFieldmapItem id="outputFieldmapItem-4" outputFieldRef="serviceOutputField-4" internalFieldName="post.Province1"/>
+			<outputFieldmapItem id="outputFieldmapItem-5" outputFieldRef="serviceOutputField-5" inputRef="serviceInput-1" inputFieldRef="serviceInputField-3"/>
+			<outputFieldmapItem id="outputFieldmapItem-6" outputFieldRef="serviceOutputField-6" internalFieldName="post.Street"/>
+			<outputFieldmapItem id="outputFieldmapItem-7" outputFieldRef="serviceOutputField-7" inputRef="serviceInput-1" inputFieldRef="serviceInputField-4"/>
+			<outputFieldmapItem id="outputFieldmapItem-8" outputFieldRef="serviceOutputField-8" internalFieldName="post.Number"/>
+			<outputFieldmapItem id="outputFieldmapItem-9" outputFieldRef="serviceOutputField-9" inputRef="serviceInput-1" inputFieldRef="serviceInputField-5"/>
+			<outputFieldmapItem id="outputFieldmapItem-10" outputFieldRef="serviceOutputField-10" internalFieldName="post.PostalCode"/>
+			<outputFieldmapItem id="outputFieldmapItem-11" outputFieldRef="serviceOutputField-11" inputRef="serviceInput-1" inputFieldRef="serviceInputField-6"/>
+			<outputFieldmapItem id="outputFieldmapItem-12" outputFieldRef="serviceOutputField-12" internalFieldName="post.City"/>
+			<outputFieldmapItem id="outputFieldmapItem-13" outputFieldRef="serviceOutputField-13" inputRef="serviceInput-1" inputFieldRef="serviceInputField-7"/>
+			<outputFieldmapItem id="outputFieldmapItem-14" outputFieldRef="serviceOutputField-14" internalFieldName="post.SubCity"/>
+			<outputFieldmapItem id="outputFieldmapItem-15" outputFieldRef="serviceOutputField-15" internalFieldName="post.ReturnCode"/>
+			<outputFieldmapItem id="outputFieldmapItem-16" outputFieldRef="serviceOutputField-16" internalFieldName="post.ResultPercentage"/>
+		</outputFieldmap>
+	</postProject>
+	<postProject id="postProject-2" name="Post Service Example_Fastcompletion" author="TOLERANT Software" active="Y" >
+		<serviceInput id="serviceInput-1">
+			<serviceInputField id="serviceInputField-1" optional="N" lengthErrorAction="NONE" name="Country" type="C" trimType="B" length="0"/>
+			<serviceInputField id="serviceInputField-2" optional="N" lengthErrorAction="NONE" name="AddressLine" type="C" trimType="B" length="0"/>
+		</serviceInput>
+		<serviceOutput id="serviceOutput-1">
+			<serviceOutputField id="serviceOutputField-1" name="Country" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-2" name="Country_out" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-3" name="AddressLine" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-4" name="AddressLine_out" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-5" name="Street_out" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-6" name="Number_out" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-7" name="PostalCode_out" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-8" name="City_out" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-9" name="SubCity_out" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-10" name="Returncode" type="C" trimType="B" length="0"/>
+			<serviceOutputField id="serviceOutputField-11" name="ResultPercentage" type="C" trimType="B" length="0"/>
+		</serviceOutput>
+		<postProfile id="postProfile-1" name="postProfile-1"  mode="FASTCOMPLETION" matchingAlternatives="ALL" matchingScope="ALL">
+		</postProfile>
+		<inputFieldmap id="inputFieldmap-1" mode="SERVICE">
+			<inputFieldmapItem id="inputFieldmapItem-1" inputRef="serviceInput-1" inputFieldRef="serviceInputField-1" internalFieldName="post.Country"/>
+			<inputFieldmapItem id="inputFieldmapItem-2" inputRef="serviceInput-1" inputFieldRef="serviceInputField-2" internalFieldName="post.AddressComplete"/>
+		</inputFieldmap>
+		<outputFieldmap id="outputFieldmap-1" outputRef="serviceOutput-1">
+			<outputFieldmapItem id="outputFieldmapItem-1" outputFieldRef="serviceOutputField-1" inputRef="serviceInput-1" inputFieldRef="serviceInputField-1"/>
+			<outputFieldmapItem id="outputFieldmapItem-2" outputFieldRef="serviceOutputField-2" internalFieldName="post.Country"/>
+			<outputFieldmapItem id="outputFieldmapItem-3" outputFieldRef="serviceOutputField-3" inputRef="serviceInput-1" inputFieldRef="serviceInputField-2"/>
+			<outputFieldmapItem id="outputFieldmapItem-4" outputFieldRef="serviceOutputField-4" internalFieldName="post.AddressComplete"/>
+			<outputFieldmapItem id="outputFieldmapItem-5" outputFieldRef="serviceOutputField-5" internalFieldName="post.Street"/>
+			<outputFieldmapItem id="outputFieldmapItem-6" outputFieldRef="serviceOutputField-6" internalFieldName="post.Number"/>
+			<outputFieldmapItem id="outputFieldmapItem-7" outputFieldRef="serviceOutputField-7" internalFieldName="post.PostalCode"/>
+			<outputFieldmapItem id="outputFieldmapItem-8" outputFieldRef="serviceOutputField-8" internalFieldName="post.City"/>
+			<outputFieldmapItem id="outputFieldmapItem-9" outputFieldRef="serviceOutputField-9" internalFieldName="post.SubCity"/>
+			<outputFieldmapItem id="outputFieldmapItem-10" outputFieldRef="serviceOutputField-10" internalFieldName="post.ReturnCode"/>
+			<outputFieldmapItem id="outputFieldmapItem-11" outputFieldRef="serviceOutputField-11" internalFieldName="post.ResultPercentage"/>
+		</outputFieldmap>
+	</postProject>
+</configuration>

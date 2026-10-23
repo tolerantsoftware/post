@@ -1,0 +1,112 @@
+suite: HTTPRoute resource
+templates:
+  - templates/httproute.yaml
+tests:
+  - it: renders backend and GUI routes by default
+    asserts:
+      - isKind:
+          of: HTTPRoute
+      - contains:
+          path: spec.rules
+          content:
+            matches:
+              - path:
+                  type: PathPrefix
+                  value: /
+            backendRefs:
+              - name: RELEASE-NAME-tolerant-post-post-master
+                port: 8080
+      - contains:
+          path: spec.rules
+          content:
+            matches:
+              - path:
+                  type: PathPrefix
+                  value: /ui
+            backendRefs:
+              - name: RELEASE-NAME-tolerant-post-post-master
+                port: 8081
+  - it: routes to the worker when master is disabled
+    set:
+      master.enabled: false
+      master.gui.enabled: false
+      gateway.gui.enabled: false
+    asserts:
+      - contains:
+          path: spec.rules
+          content:
+            matches:
+              - path:
+                  type: PathPrefix
+                  value: /
+            backendRefs:
+              - name: RELEASE-NAME-tolerant-post-post
+                port: 8080
+  - it: references an existing Gateway and its namespace
+    set:
+      gateway.existing.enabled: true
+      gateway.existing.gatewayName: shared-gateway
+      gateway.existing.gatewayNamespace: shared-networking
+    asserts:
+      - equal:
+          path: spec.parentRefs[0].name
+          value: shared-gateway
+      - equal:
+          path: spec.parentRefs[0].namespace
+          value: shared-networking
+      - equal:
+          path: spec.parentRefs[0].sectionName
+          value: http
+  - it: does not render the HTTPRoute when disabled
+    set:
+      gateway.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: omits route hostnames when named and catch-all listeners are mixed
+    set:
+      gateway.listeners:
+        - name: named
+          protocol: HTTP
+          port: 8080
+          hostname: post.example.com
+        - name: catchall
+          protocol: HTTP
+          port: 80
+    asserts:
+      - notExists:
+          path: spec.hostnames
+      - equal:
+          path: spec.parentRefs
+          value:
+            - name: RELEASE-NAME-tolerant-post-gateway
+              sectionName: named
+            - name: RELEASE-NAME-tolerant-post-gateway
+              sectionName: catchall
+  - it: includes route hostnames when all listeners have hostnames
+    set:
+      gateway.listeners:
+        - name: primary
+          protocol: HTTP
+          port: 80
+          hostname: post.example.com
+        - name: secondary
+          protocol: HTTP
+          port: 8080
+          hostname: alternate.example.com
+    asserts:
+      - equal:
+          path: spec.hostnames
+          value:
+            - post.example.com
+            - alternate.example.com
+  - it: omits route hostnames when all listeners accept any hostname
+    set:
+      gateway.listeners:
+        - name: catchall
+          protocol: HTTP
+          port: 80
+          hostname: ""
+    asserts:
+      - notExists:
+          path: spec.hostnames

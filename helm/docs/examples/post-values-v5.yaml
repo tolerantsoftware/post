@@ -1,0 +1,9 @@
+# Example installation values for legacy AddressDoctor V5.
+# Replace the placeholder with the licensed unlock code before installation.
+# Protect the completed values file because it contains license credentials.
+global:
+  post:
+    engineVersion: V5
+    v5Licenses:
+      - envName: UNLOCKCODE
+        value: YOUR_UNLOCK_CODE
